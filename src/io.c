@@ -30,29 +30,29 @@
 #include <glib.h>
 #include <uv.h>
 
-#define MAX_HISTORY_SIZE 255
+#define CONSOLE_MAX_HISTORY_SIZE 255
 
-/* io callbacks */
+/* IO callbacks */
 static uv_signal_t sigint_watcher;
 static uv_poll_t stdin_watcher, stdout_watcher;
 
-/* we keep track of a history of commands, and manipulate a LIFO tail queue so
-   that we can recall previous commands */
+/* We keep track of a history of commands, and manipulate a LIFO tail queue so
+ * that we can recall previous commands */
 struct history {
   TAILQ_ENTRY(history) histories;
   char *cmd;
 };
 TAILQ_HEAD(history_list, history) history_head;
-static unsigned int humnum = 0; /* a stack counter */
+static unsigned int history_stack = 0; /* a stack counter */
 
-/* set a filestream to non-blocking mode. returns 0 on success */
+/* Set a filestream to non-blocking mode. returns 0 on success */
 static int set_non_blocking(int fd)
 {
   int val = fcntl(fd, F_GETFL, 0);
   return val == -1 ? -1 : fcntl(fd, F_SETFL, val | O_NONBLOCK);
 }
 
-/* print to screen. watch those format strings! */
+/* Print to screen. watch those format strings! */
 static int print_msg(const char *fmt, ...)
 {
   int w;
@@ -83,35 +83,37 @@ static void print_prompt(void)
   print_msg(":) > ");
 }
 
-/* pop the first piece of history off the stack */
+/* XXX: console history is not fully implemented */
+/* Pop the first piece of history off the stack */
 static void pop_history(void)
 {
   struct history *historyp = malloc(sizeof(struct history));
-
+  if (!historyp)
+    return;
   historyp = TAILQ_FIRST(&history_head);
   TAILQ_REMOVE(&history_head, historyp, histories);
   free(historyp);
-  humnum--;
+  history_stack--;
 }
 
-/* push a piece of history onto the end of the stack */
+/* Push a piece of history onto the end of the stack */
 static void push_history(char *buf)
 {
   struct history *historyp = malloc(sizeof(struct history));
+  if (!historyp)
+    return;
 
   historyp->cmd = malloc(strlen(buf));
+  if (!historyp->cmd) {
+    free(historyp);
+    return;
+  }
   strncpy(historyp->cmd, buf, strlen(buf));
   TAILQ_INSERT_TAIL(&history_head, historyp, histories);
-  humnum++;
+  history_stack++;
 }
 
-/* traverse the queue for items of history */
-static void recall_history(void)
-{
-  /* XXX: not yet implemented */
-}
-
-static void help_cli(char *fmt)
+static void help_console(char *fmt)
 {
   /* XXX: not yet implemented */
 }
@@ -121,8 +123,8 @@ static void sigint_cb(uv_signal_t *handle, int signum)
   shutdown_postel(NULL);
 }
 
-/* here are the commands yo! */
-#define CLI_COMMANDS 2
+/* Here are the commands yo! */
+#define CONSOLE_COMMANDS 2
 struct commands {
   char *name;
   int args;
@@ -130,9 +132,9 @@ struct commands {
   void (*function)(char *);
 } commands[] = {
   { "quit", 0, "safely shutdown the simulation.", &shutdown_postel},
-  { "help", 1, "display help for a specific topic.", &help_cli}};
+  { "help", 1, "display help for a specific topic.", &help_console}};
 
-/* callback when data is readable on stdin */
+/* Callback when data is readable on stdin */
 static void stdin_cb(uv_poll_t *handle, int status, int events)
 {
   char buf[4096];
@@ -141,18 +143,18 @@ static void stdin_cb(uv_poll_t *handle, int status, int events)
   bzero(&buf, sizeof(buf));
   rv = read(STDIN_FILENO, buf, sizeof(buf));
   if (rv >= 0) {
-    /* push the command to the history stack */
+    /* Push the command to the history stack */
     push_history(buf);
-    if (humnum > MAX_HISTORY_SIZE)
+    if (history_stack > CONSOLE_MAX_HISTORY_SIZE)
       pop_history();
 
-    /* process the input */
+    /* Process the input */
     l = FALSE;
     for (n = 1; n < strlen(buf); n++) {
       if (buf[n] == ' ' || buf[n] == '\n')
         break;
     }
-    for (i = 0; i < CLI_COMMANDS; i++) {
+    for (i = 0; i < CONSOLE_COMMANDS; i++) {
       if (strncmp(commands[i].name, buf, n) == 0) {
         l = TRUE;
         commands[i].function(buf);
@@ -168,9 +170,9 @@ static void stdin_cb(uv_poll_t *handle, int status, int events)
   print_prompt();
 }
 
-void shutdown_cli(void)
+void shutdown_console(void)
 {
-  /* free the history */
+  /* Free the history */
   struct history *historyp;
   while (!TAILQ_EMPTY(&history_head)) {
     historyp = TAILQ_FIRST(&history_head);
@@ -181,11 +183,11 @@ void shutdown_cli(void)
   uv_signal_stop(&sigint_watcher);
 }
 
-int init_cli(uv_loop_t *loop)
+int init_console(uv_loop_t *loop)
 {
   int err;
 
-  /* place stdin and stdout streams in non-blocking mode */
+  /* Place stdin and stdout streams in non-blocking mode */
   err = set_non_blocking(STDIN_FILENO);
   if (err) {
     fprintf(stderr, "Unable to set stdin to non-blocking mode.\n");
@@ -197,7 +199,7 @@ int init_cli(uv_loop_t *loop)
     goto peace;
   }
 
-  /* initialize the history list */
+  /* Initialize the history list */
   TAILQ_INIT(&history_head);
 
   printf(" _  _  __|_ _ |\n" \
@@ -208,7 +210,7 @@ int init_cli(uv_loop_t *loop)
          "please read LICENSE for copyright details.\n",  VERSION);
   print_prompt();
 
-  /* spawn input and output callbacks */
+  /* Spawn input and output callbacks */
   uv_poll_init(loop, &stdin_watcher, STDIN_FILENO);
   uv_poll_init(loop, &stdout_watcher, STDOUT_FILENO);
   uv_poll_start(&stdin_watcher, UV_READABLE, stdin_cb);

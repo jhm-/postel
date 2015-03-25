@@ -26,13 +26,13 @@
 
 #define VERSION "0.1.0-alpha"
 
-/* rendering defaults */
+/* Rendering defaults */
 #define DEFAULT_MATRIX_WIDTH 2048
 #define DEFAULT_MATRIX_HEIGHT 2048
 #define DEFAULT_NODE_POINT_SIZE 16
 #define DEFAULT_NODE_RADIUS_SIZE 48
 
-/* define TRUE/FALSE */
+/* Define TRUE/FALSE */
 #ifndef FALSE
 #define FALSE 0
 #endif
@@ -41,15 +41,36 @@
 #define TRUE 1
 #endif
 
-/* prototypes */
-gpointer supervisor(gpointer data);
-int init_cli(uv_loop_t *loop);
-int renderer(void);
+/* A structure for the global state of postel */
+struct global_state_struct {
+  unsigned int matrix_width;
+  unsigned int matrix_height;
+  unsigned int node_p_size;
+  unsigned int node_r_size;
+};
 
+/* The data structure for each network node. _Any_ operation on a node, is
+ * protected by a lock on node_head defined in sim.c */
+struct node {
+  TAILQ_ENTRY(node) nodes;
+  unsigned int id;
+  GooCanvasItem *point, *radius;
+};
+TAILQ_HEAD(node_list, node) node_head;
+
+/* Prototypes */
+/* Initialize */
+gpointer init_simulator(gpointer data);
+int init_console(uv_loop_t *loop);
+int init_renderer(void);
+
+/* Simulation control */
 int add_node(gdouble x, gdouble y);
 int del_node(unsigned int id);
+struct node *get_node(unsigned int id);
 
+/* Shutdown */
 void shutdown_postel(char *fmt);
-void shutdown_cli(void);
-void shutdown_supervisor(void);
+void shutdown_console(void);
+void shutdown_simulator(void);
 void shutdown_renderer(void);

@@ -25,14 +25,29 @@
 #include <stdlib.h>
 #include <goocanvas.h>
 
+extern struct global_state_struct postel;
+G_LOCK_EXTERN(postel);
+
 void shutdown_renderer(void)
 {
   gtk_main_quit();
 }
 
-int renderer(void)
+int init_renderer(void)
 {
   int err = 0; /* XXX: initialize */
+  GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+  GtkWidget *canvas = goo_canvas_new();
+
+  /* XXX: error checking? */
+  gtk_container_add(GTK_CONTAINER(window), scrolled_window);
+  gtk_container_add(GTK_CONTAINER(scrolled_window), canvas);
+  G_LOCK(postel);
+  goo_canvas_set_bounds(GOO_CANVAS(canvas), 0, 0, postel.matrix_width,
+  	postel.matrix_height);
+  G_UNLOCK(postel);
+  gtk_widget_show_all(window);
 
   gtk_main();
   return err;

@@ -28,45 +28,65 @@
 #include <goocanvas.h>
 #include <uv.h>
 
-/* the data structure for each network node. _any_ operation on a node, is
-   protected by a lock on node_head */
-struct node {
-  TAILQ_ENTRY(node) nodes;
-  unsigned int id;
-  GooCanvasItem *point, *radius;
-};
-TAILQ_HEAD(node_list, node) node_head;
+extern struct global_state_struct postel;
+G_LOCK_EXTERN(postel);
 G_LOCK_DEFINE(node_head);
 
-/* returns -1 on failure, new node id on success */
+/* Returns -1 on failure, new node id on success */
 int add_node(gdouble x, gdouble y)
 {
+  int err;
   unsigned int i = 0;
   struct node *nodei = malloc(sizeof(struct node));
   struct node *nodep = malloc(sizeof(struct node));
 
-  /* check for the next greatest unique identifier. the id is always incremental
-     despite the nodes in existence, but realistically we should never hit this
-     limit */
+  /* Check for the next greatest unique identifier. the id is always incremental
+   * despite the nodes in existence, but realistically we should never hit this
+   * limit */
   G_LOCK(node_head);
+
+  if (!nodep || !nodei) {
+    err = -1;
+    goto peace;
+  }
+
   TAILQ_FOREACH(nodep, &node_head, nodes) {
     i = (nodep->id > i) ? nodep->id : i;
   }
   free(nodep);
-  if (i < UINT_MAX) {
-  	nodei->id = ++i;
-    TAILQ_INSERT_TAIL(&node_head, nodei, nodes);
-    G_UNLOCK(node_head);
-    return nodei->id;
+
+  if (i > UINT_MAX) {
+    /* No more identifiers! */
+    err = -1;
+    goto peace;
   }
-  else {
-  	/* no more identifiers! */
-    G_UNLOCK(node_head);
-  	return -1;
+
+  /* Initialize the node */
+  nodei->id = ++i;
+  G_LOCK(postel);
+  nodei->point = goo_canvas_ellipse_new(NULL, x, y, \
+    postel.node_p_size, postel.node_p_size,
+    "stroke-color", "red",
+    "line-width", 1.0, NULL);
+  nodei->radius = goo_canvas_ellipse_new(NULL, x, y, \
+    postel.node_r_size, postel.node_r_size,
+    "stroke-color", "red",
+    "line-width", 1,0, NULL);
+  G_UNLOCK(postel);
+  if (!nodei->point || !nodei->radius) {
+    fprintf(stderr, "Error allocating memory for a new node!\n");
+    goto peace;
   }
+  TAILQ_INSERT_TAIL(&node_head, nodei, nodes);
+  /* Success! */
+  err = nodei->id;
+
+peace:
+    G_UNLOCK(node_head);
+  	return err;
 }
 
-/* returns -1 on failure (to find node), 0 on success */
+/* Returns -1 on failure (to find node), 0 on success */
 int del_node(unsigned int id)
 {
   int err = -1;
@@ -76,6 +96,8 @@ int del_node(unsigned int id)
   TAILQ_FOREACH(nodep, &node_head, nodes) {
     if (id == nodep->id) {
       err = 0;
+      free(nodep->point);
+      free(nodep->radius);
       TAILQ_REMOVE(&node_head, nodep, nodes);
       free(nodep);
       break;
@@ -85,8 +107,9 @@ int del_node(unsigned int id)
   return err;
 }
 
-/* you _must_ lock node_head before calling this function, and making any
-   modifications to the node */
+/* You _must_ lock node_head before calling this function, and making any
+ * modifications to the node. Returns a valid pointer to the node, or NULL if
+ * not found. */
 struct node *get_node(unsigned int id)
 {
   struct node *nodep = NULL;
@@ -98,7 +121,7 @@ struct node *get_node(unsigned int id)
   return nodep;
 }
 
-void shutdown_supervisor(void)
+void shutdown_simulator(void)
 {
   struct node *nodep;
 
@@ -111,17 +134,19 @@ void shutdown_supervisor(void)
   G_UNLOCK(node_head);
 }
 
-gpointer supervisor(gpointer data)
+gpointer init_simulator(gpointer data)
 {
   uv_loop_t *loop = uv_loop_new();
 
-  /* initialize the node list */
+  /* Initialize the node list */
   G_LOCK(node_head);
   TAILQ_INIT(&node_head);
   G_UNLOCK(node_head);
-  /* initialize the CLI */
-  init_cli(loop);
-  /* start the event loop */
+
+  /* Initialize the console */
+  init_console(loop);
+
+  /* Start the event loop */
   uv_run(loop, UV_RUN_DEFAULT);
   return NULL;
 }

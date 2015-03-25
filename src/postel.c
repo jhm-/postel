@@ -25,18 +25,14 @@
 #include <stdlib.h>
 #include <gtk/gtk.h>
 
-/* the global configuration state */
- struct {
-  unsigned int matrix_width;
-  unsigned int matrix_height;
-  unsigned int node_p_size;
-  unsigned int node_r_size;
-} config = {
+/* Initialize the global configuration state and protect with a lock */
+struct global_state_struct postel = {
   DEFAULT_MATRIX_WIDTH,
   DEFAULT_MATRIX_HEIGHT,
   DEFAULT_NODE_POINT_SIZE,
   DEFAULT_NODE_RADIUS_SIZE
 };
+G_LOCK_DEFINE(postel);
 
 static void usage(const char *argv)
 {
@@ -47,20 +43,20 @@ static void usage(const char *argv)
 
 void shutdown_postel(char *fmt)
 {
+  shutdown_console();
+  shutdown_simulator();
   shutdown_renderer();
-  shutdown_cli();
-  shutdown_supervisor();
 }
 
-/* welcome to the fantasy zone! get ready! */
+/* Welcome to the fantasy zone! Get ready! */
 int main(int argc, const char *argv[])
 {
   int i;
   int err = EXIT_SUCCESS;
-  GThread *supervisor_thread;
+  GThread *sim_thread;
   GError *error = NULL;
 
-  /* parse the command line */
+  /* Parse the command line */
   for (i = 0; i < argc; i++) {
     if (argv[i][0] == '-') {
       switch(argv[i][1]) {
@@ -72,17 +68,23 @@ int main(int argc, const char *argv[])
     }
   }
 
+  /* The simulation is run in a seperate thread, which includes a console
+   * interface to supervise, modify network topography and control the flow of
+   * execution. The gtk renderer is initiated from the main postel thread, and
+   * provides a visual representation of the simulation, with a more narrow
+   * interface to the model parameters than the console. */
+
   gtk_init(0, NULL);
-  /* launch the supervisor thread */
-  supervisor_thread = g_thread_try_new("supervisor", supervisor, NULL, &error);
-  if (!supervisor_thread) {
-    fprintf(stderr, "Error creating supervisor thread: %s\n", error->message);
+  /* Launch the supervisor thread */
+  sim_thread = g_thread_try_new("simulator", init_simulator, NULL, &error);
+  if (!sim_thread) {
+    fprintf(stderr, "Error creating simulator thread: %s\n", error->message);
     err = error->code;
     goto peace;
   }
 
-  /* launch the renderer */
-  err = renderer();
+  /* Launch the renderer */
+  err = init_renderer();
 
 peace:
   return err;
