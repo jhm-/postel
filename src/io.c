@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <glib.h>
 #include <uv.h>
 
 #define MAX_HISTORY_SIZE 255

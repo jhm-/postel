@@ -21,13 +21,16 @@
  */
 #include "queue.h"
 
-#include <gtk/gtk.h>
+#include <goocanvas.h>
 #include <uv.h>
 
 #define VERSION "0.1.0-alpha"
 
-#define MATRIX_WIDTH 2048
-#define MATRIX_HEIGHT 2048
+/* rendering defaults */
+#define DEFAULT_MATRIX_WIDTH 2048
+#define DEFAULT_MATRIX_HEIGHT 2048
+#define DEFAULT_NODE_POINT_SIZE 16
+#define DEFAULT_NODE_RADIUS_SIZE 48
 
 /* define TRUE/FALSE */
 #ifndef FALSE
@@ -38,10 +41,25 @@
 #define TRUE 1
 #endif
 
+/* the data structure for each network node. _any_ operation on a node, is
+   protected by a lock on node_head */
+struct node {
+  TAILQ_ENTRY(node) nodes;
+  unsigned int id;
+  GooCanvasItem *point, *radius;
+};
+TAILQ_HEAD(node_list, node) node_head;
+G_LOCK_DEFINE(node_head);
+
 /* prototypes */
-int renderer(void);
 gpointer supervisor(gpointer data);
 int init_cli(uv_loop_t *loop);
+int renderer(void);
+
+int add_node(gdouble x, gdouble y);
+int del_node(unsigned int id);
+
 void shutdown_postel(char *fmt);
-void shutdown_renderer(void);
 void shutdown_cli(void);
+void shutdown_supervisor(void);
+void shutdown_renderer(void);

@@ -34,8 +34,9 @@ static void usage(const char *argv)
 
 void shutdown_postel(char *fmt)
 {
-  shutdown_cli();
   shutdown_renderer();
+  shutdown_cli();
+  shutdown_supervisor();
 }
 
 /* welcome to the fantasy zone! get ready! */
@@ -66,8 +67,6 @@ int main(int argc, const char *argv[])
     err = error->code;
     goto peace;
   }
-
-  /* XXX: halt until the supervisor has initialized */
 
   /* launch the renderer */
   err = renderer();

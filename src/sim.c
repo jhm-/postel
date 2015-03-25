@@ -28,38 +28,32 @@
 #include <goocanvas.h>
 #include <uv.h>
 
-struct node {
-  TAILQ_ENTRY(node) nodes;
-  unsigned int id;
-  GooCanvasItem *point, *radius;
-};
-TAILQ_HEAD(node_list, node) node_head;
-static unsigned int nodenum = 0; /* a stack counter. nodenum should always be
-  less than UINT_MAX if node->id is less than UINT_MAX */
-
 /* returns -1 on failure, new node id on success */
 int add_node(gdouble x, gdouble y)
 {
-  unsigned int i;
+  unsigned int i = 0;
   struct node *nodei = malloc(sizeof(struct node));
   struct node *nodep = malloc(sizeof(struct node));
 
   /* check for the next greatest unique identifier. the id is always incremental
      despite the nodes in existence, but realistically we should never hit this
      limit */
+  G_LOCK(node_head);
   TAILQ_FOREACH(nodep, &node_head, nodes) {
     i = (nodep->id > i) ? nodep->id : i;
   }
   free(nodep);
   if (i < UINT_MAX) {
-  	nodei->id = i++;
+  	nodei->id = ++i;
     TAILQ_INSERT_TAIL(&node_head, nodei, nodes);
-    nodenum++;
+    G_UNLOCK(node_head);
     return nodei->id;
   }
-  else
+  else {
   	/* no more identifiers! */
+    G_UNLOCK(node_head);
   	return -1;
+  }
 }
 
 /* returns -1 on failure (to find node), 0 on success */
@@ -68,16 +62,30 @@ int del_node(unsigned int id)
   int err = -1;
   struct node *nodep;
 
+  G_LOCK(node_head);
   TAILQ_FOREACH(nodep, &node_head, nodes) {
     if (id == nodep->id) {
       err = 0;
       TAILQ_REMOVE(&node_head, nodep, nodes);
       free(nodep);
-      nodenum--;
       break;
     }
   }
+  G_UNLOCK(node_head);
   return err;
+}
+
+void shutdown_supervisor(void)
+{
+  struct node *nodep;
+
+  G_LOCK(node_head);
+  while (!TAILQ_EMPTY(&node_head)) {
+    nodep = TAILQ_FIRST(&node_head);
+    TAILQ_REMOVE(&node_head, nodep, nodes);
+    free(nodep);
+  }
+  G_UNLOCK(node_head);
 }
 
 gpointer supervisor(gpointer data)
@@ -85,10 +93,11 @@ gpointer supervisor(gpointer data)
   uv_loop_t *loop = uv_loop_new();
 
   /* initialize the node list */
+  G_LOCK(node_head);
   TAILQ_INIT(&node_head);
+  G_UNLOCK(node_head);
   /* initialize the CLI */
   init_cli(loop);
-  /* XXX: message the rendering thread */
   /* start the event loop */
   uv_run(loop, UV_RUN_DEFAULT);
   return NULL;
