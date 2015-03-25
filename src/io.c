@@ -70,7 +70,7 @@ static int print_msg(const char *fmt, ...)
     fprintf(stderr, "Error on write() to stdout: %s\n", strerror(errno));
   }
   while (w >= 0 && w != log_buf_pos) {
-    /* partial buf written, so shift position */
+    /* Partial buf written, so shift position */
     memmove(log_buf, log_buf + w, log_buf_pos - w);
     log_buf_pos -= w;
   }
@@ -131,8 +131,8 @@ struct commands {
   char *summary;
   void (*function)(char *);
 } commands[] = {
-  { "quit", 0, "safely shutdown the simulation.", &shutdown_postel},
-  { "help", 1, "display help for a specific topic.", &help_console}};
+  { "quit", 0, "Safely shutdown the simulation.", &shutdown_postel},
+  { "help", 1, "Display help for a specific topic.", &help_console}};
 
 /* Callback when data is readable on stdin */
 static void stdin_cb(uv_poll_t *handle, int status, int events)

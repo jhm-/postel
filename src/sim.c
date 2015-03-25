@@ -40,21 +40,18 @@ int add_node(gdouble x, gdouble y)
   struct node *nodei = malloc(sizeof(struct node));
   struct node *nodep = malloc(sizeof(struct node));
 
-  /* Check for the next greatest unique identifier. the id is always incremental
-   * despite the nodes in existence, but realistically we should never hit this
-   * limit */
   G_LOCK(node_head);
-
   if (!nodep || !nodei) {
     err = -1;
     goto peace;
   }
-
+  /* Check for the next greatest unique identifier. the id is always incremental
+   * despite the nodes in existence, but realistically we should never hit this
+   * limit */
   TAILQ_FOREACH(nodep, &node_head, nodes) {
     i = (nodep->id > i) ? nodep->id : i;
   }
   free(nodep);
-
   if (i > UINT_MAX) {
     /* No more identifiers! */
     err = -1;
@@ -75,6 +72,8 @@ int add_node(gdouble x, gdouble y)
   G_UNLOCK(postel);
   if (!nodei->point || !nodei->radius) {
     fprintf(stderr, "Error allocating memory for a new node!\n");
+    free(nodei);
+    err = -1;
     goto peace;
   }
   TAILQ_INSERT_TAIL(&node_head, nodei, nodes);
@@ -82,8 +81,8 @@ int add_node(gdouble x, gdouble y)
   err = nodei->id;
 
 peace:
-    G_UNLOCK(node_head);
-  	return err;
+  G_UNLOCK(node_head)
+  return err;
 }
 
 /* Returns -1 on failure (to find node), 0 on success */

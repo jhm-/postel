@@ -49,8 +49,8 @@ struct global_state_struct {
   unsigned int node_r_size;
 };
 
-/* The data structure for each network node. _Any_ operation on a node, is
- * protected by a lock on node_head defined in sim.c */
+/* The structure for each network node. _Any_ operation on a node, is protected
+ * by a lock on node_head defined in sim.c */
 struct node {
   TAILQ_ENTRY(node) nodes;
   unsigned int id;
