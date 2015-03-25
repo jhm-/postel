@@ -25,6 +25,19 @@
 #include <stdlib.h>
 #include <gtk/gtk.h>
 
+/* the global configuration state */
+ struct {
+  unsigned int matrix_width;
+  unsigned int matrix_height;
+  unsigned int node_p_size;
+  unsigned int node_r_size;
+} config = {
+  DEFAULT_MATRIX_WIDTH,
+  DEFAULT_MATRIX_HEIGHT,
+  DEFAULT_NODE_POINT_SIZE,
+  DEFAULT_NODE_RADIUS_SIZE
+};
+
 static void usage(const char *argv)
 {
   fprintf(stderr, "postel - version: %s\n"

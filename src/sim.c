@@ -28,6 +28,16 @@
 #include <goocanvas.h>
 #include <uv.h>
 
+/* the data structure for each network node. _any_ operation on a node, is
+   protected by a lock on node_head */
+struct node {
+  TAILQ_ENTRY(node) nodes;
+  unsigned int id;
+  GooCanvasItem *point, *radius;
+};
+TAILQ_HEAD(node_list, node) node_head;
+G_LOCK_DEFINE(node_head);
+
 /* returns -1 on failure, new node id on success */
 int add_node(gdouble x, gdouble y)
 {
@@ -73,6 +83,19 @@ int del_node(unsigned int id)
   }
   G_UNLOCK(node_head);
   return err;
+}
+
+/* you _must_ lock node_head before calling this function, and making any
+   modifications to the node */
+struct node *get_node(unsigned int id)
+{
+  struct node *nodep = NULL;
+
+  TAILQ_FOREACH(nodep, &node_head, nodes) {
+    if (id == nodep->id)
+      break;
+  }
+  return nodep;
 }
 
 void shutdown_supervisor(void)

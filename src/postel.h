@@ -41,16 +41,6 @@
 #define TRUE 1
 #endif
 
-/* the data structure for each network node. _any_ operation on a node, is
-   protected by a lock on node_head */
-struct node {
-  TAILQ_ENTRY(node) nodes;
-  unsigned int id;
-  GooCanvasItem *point, *radius;
-};
-TAILQ_HEAD(node_list, node) node_head;
-G_LOCK_DEFINE(node_head);
-
 /* prototypes */
 gpointer supervisor(gpointer data);
 int init_cli(uv_loop_t *loop);
