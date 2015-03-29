@@ -64,6 +64,10 @@ gpointer init_simulator(gpointer data);
 int init_console(uv_loop_t *loop);
 int init_renderer(void);
 
+/* Render-thread GooCanvas functions */
+GooCanvasItem *rndr_new_goo_ellipse(gdouble x, gdouble y, unsigned int size);
+void rndr_destroy_goo_ellipse(GooCanvasItem *ellipse);
+
 /* Simulation control */
 int add_node(gdouble x, gdouble y);
 int del_node(unsigned int id);

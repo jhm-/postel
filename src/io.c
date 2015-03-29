@@ -30,6 +30,10 @@
 #include <glib.h>
 #include <uv.h>
 
+extern struct global_state_struct postel;
+G_LOCK_EXTERN(postel);
+G_LOCK_DEFINE(node_head);
+
 #define CONSOLE_MAX_HISTORY_SIZE 255
 
 /* IO callbacks */
@@ -113,6 +117,11 @@ static void push_history(char *buf)
   history_stack++;
 }
 
+static void node_console(char *fmt)
+{
+  /* XXX: not yet implemented */
+}
+
 static void help_console(char *fmt)
 {
   /* XXX: not yet implemented */
@@ -124,15 +133,16 @@ static void sigint_cb(uv_signal_t *handle, int signum)
 }
 
 /* Here are the commands yo! */
-#define CONSOLE_COMMANDS 2
+#define CONSOLE_COMMANDS 3
 struct commands {
   char *name;
-  int args;
-  char *summary;
+  char *desc;
   void (*function)(char *);
 } commands[] = {
-  { "quit", 0, "Safely shutdown the simulation.", &shutdown_postel},
-  { "help", 1, "Display help for a specific topic.", &help_console}};
+  {"node", "node [...] : all commands related to nodes, including creation " \
+    "and destruction.", &node_console},
+  {"help", "help [topic] : display help for a specific topic.", &help_console},
+  {"quit", "quit : safely shutdown the simulation.", &shutdown_postel}};
 
 /* Callback when data is readable on stdin */
 static void stdin_cb(uv_poll_t *handle, int status, int events)
@@ -198,7 +208,6 @@ int init_console(uv_loop_t *loop)
     fprintf(stderr, "Unable to set stdout to non-blocking mode.\n");
     goto peace;
   }
-
   /* Initialize the history list */
   TAILQ_INIT(&history_head);
 

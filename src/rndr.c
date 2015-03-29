@@ -28,9 +28,26 @@
 extern struct global_state_struct postel;
 G_LOCK_EXTERN(postel);
 
+static GtkWidget *canvas;
+
 void shutdown_renderer(void)
 {
   gtk_main_quit();
+}
+
+void rndr_destroy_goo_ellipse(GooCanvasItem *ellipse)
+{
+  goo_canvas_item_remove(ellipse);
+}
+
+/* XXX: needs a va_list of properties */
+GooCanvasItem *rndr_new_goo_ellipse(gdouble x, gdouble y, unsigned int size)
+{
+  GooCanvasItem *root = goo_canvas_get_root_item(GOO_CANVAS(canvas));
+  GooCanvasItem *ellipse = goo_canvas_ellipse_new(root, x, y, size, size,
+    "stroke-color", "red",
+    "line-width", 1.0, NULL);
+  return ellipse;
 }
 
 int init_renderer(void)
@@ -38,7 +55,7 @@ int init_renderer(void)
   int err = 0; /* XXX: initialize */
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
-  GtkWidget *canvas = goo_canvas_new();
+  canvas = goo_canvas_new();
 
   /* XXX: error checking? */
   gtk_container_add(GTK_CONTAINER(window), scrolled_window);

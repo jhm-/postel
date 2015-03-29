@@ -2,11 +2,11 @@
 
 WIP of a process-based *mobile* network simulator, where each network node 
 operates as a seperate process interacting with the simulator through named
-pipes, or a process virtual machine that executes Lua script.
+pipes.
 
 ## Dependencies
 
-LibUV, LuaJIT, GTK3, and GooCanvas.
+LibUV, GTK3, and GooCanvas.
 
 ## License
 

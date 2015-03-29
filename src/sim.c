@@ -32,6 +32,7 @@ extern struct global_state_struct postel;
 G_LOCK_EXTERN(postel);
 G_LOCK_DEFINE(node_head);
 
+/* LOCK node_head BEFORE CALLING THIS FUNCTION! */
 /* Returns -1 on failure, new node id on success */
 int add_node(gdouble x, gdouble y)
 {
@@ -40,7 +41,6 @@ int add_node(gdouble x, gdouble y)
   struct node *nodei = malloc(sizeof(struct node));
   struct node *nodep = malloc(sizeof(struct node));
 
-  G_LOCK(node_head);
   if (!nodep || !nodei) {
     err = -1;
     goto peace;
@@ -61,17 +61,10 @@ int add_node(gdouble x, gdouble y)
   /* Initialize the node */
   nodei->id = ++i;
   G_LOCK(postel);
-  nodei->point = goo_canvas_ellipse_new(NULL, x, y, \
-    postel.node_p_size, postel.node_p_size,
-    "stroke-color", "red",
-    "line-width", 1.0, NULL);
-  nodei->radius = goo_canvas_ellipse_new(NULL, x, y, \
-    postel.node_r_size, postel.node_r_size,
-    "stroke-color", "red",
-    "line-width", 1,0, NULL);
+  nodei->point = rndr_new_goo_ellipse(x, y, postel.node_p_size);
+  nodei->radius = rndr_new_goo_ellipse(x, y, postel.node_r_size);
   G_UNLOCK(postel);
   if (!nodei->point || !nodei->radius) {
-    fprintf(stderr, "Error allocating memory for a new node!\n");
     free(nodei);
     err = -1;
     goto peace;
@@ -81,34 +74,32 @@ int add_node(gdouble x, gdouble y)
   err = nodei->id;
 
 peace:
-  G_UNLOCK(node_head)
   return err;
 }
 
+/* LOCK node_head BEFORE CALLING THIS FUNCTION! */
 /* Returns -1 on failure (to find node), 0 on success */
 int del_node(unsigned int id)
 {
   int err = -1;
   struct node *nodep;
 
-  G_LOCK(node_head);
   TAILQ_FOREACH(nodep, &node_head, nodes) {
     if (id == nodep->id) {
       err = 0;
-      free(nodep->point);
-      free(nodep->radius);
+      rndr_destroy_goo_ellipse(nodep->point);
+      rndr_destroy_goo_ellipse(nodep->radius);
       TAILQ_REMOVE(&node_head, nodep, nodes);
       free(nodep);
       break;
     }
   }
-  G_UNLOCK(node_head);
   return err;
 }
 
-/* You _must_ lock node_head before calling this function, and making any
- * modifications to the node. Returns a valid pointer to the node, or NULL if
- * not found. */
+/* LOCK node_head BEFORE CALLING THIS FUNCTION, AND MAKING CHANGES TO THE
+ * NODE! */
+/* Returns a valid pointer to the node, or NULL if not found. */
 struct node *get_node(unsigned int id)
 {
   struct node *nodep = NULL;
@@ -127,8 +118,7 @@ void shutdown_simulator(void)
   G_LOCK(node_head);
   while (!TAILQ_EMPTY(&node_head)) {
     nodep = TAILQ_FIRST(&node_head);
-    TAILQ_REMOVE(&node_head, nodep, nodes);
-    free(nodep);
+    del_node(nodep->id);
   }
   G_UNLOCK(node_head);
 }
