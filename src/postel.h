@@ -1,5 +1,5 @@
 /*
- * Copyright Â© 2015 Jack Morton <jhm@jemscout.com>
+ * Copyright © 2015 Jack Morton <jhm@jemscout.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -15,12 +15,13 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
 #include "queue.h"
 
+#include <stdint.h>
 #include <goocanvas.h>
 #include <uv.h>
 
@@ -53,8 +54,9 @@ struct global_state_struct {
  * by a lock on node_head defined in sim.c */
 struct node {
   TAILQ_ENTRY(node) nodes;
-  unsigned int id;
+  intptr_t id;
   GooCanvasItem *point, *radius;
+  TAILQ_HEAD(sibling_list, node) sibling_head;
 };
 TAILQ_HEAD(node_list, node) node_head;
 
@@ -71,7 +73,7 @@ void rndr_destroy_goo_ellipse(GooCanvasItem *ellipse);
 /* Simulation control */
 int add_node(gdouble x, gdouble y);
 int del_node(unsigned int id);
-struct node *get_node(unsigned int id);
+struct node *get_node(intptr_t id);
 
 /* Shutdown */
 void shutdown_postel(char *fmt);

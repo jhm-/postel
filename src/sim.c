@@ -1,6 +1,6 @@
 /* sim.c: the supervisor, the model environment and the simulated network
  * nodes.
- * Copyright Â© 2015 Jack Morton <jhm@jemscout.com>
+ * Copyright © 2015 Jack Morton <jhm@jemscout.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -16,8 +16,8 @@
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
  
@@ -37,29 +37,14 @@ G_LOCK_DEFINE(node_head);
 int add_node(gdouble x, gdouble y)
 {
   int err;
-  unsigned int i = 0;
   struct node *nodei = malloc(sizeof(struct node));
-  struct node *nodep = malloc(sizeof(struct node));
-
-  if (!nodep || !nodei) {
-    err = -1;
-    goto peace;
-  }
-  /* Check for the next greatest unique identifier. the id is always incremental
-   * despite the nodes in existence, but realistically we should never hit this
-   * limit */
-  TAILQ_FOREACH(nodep, &node_head, nodes) {
-    i = (nodep->id > i) ? nodep->id : i;
-  }
-  free(nodep);
-  if (i > UINT_MAX) {
-    /* No more identifiers! */
+  if (!nodei) {
     err = -1;
     goto peace;
   }
 
   /* Initialize the node */
-  nodei->id = ++i;
+  nodei->id = (intptr_t)nodei;
   G_LOCK(postel);
   nodei->point = rndr_new_goo_ellipse(x, y, postel.node_p_size);
   nodei->radius = rndr_new_goo_ellipse(x, y, postel.node_r_size);
@@ -100,7 +85,7 @@ int del_node(unsigned int id)
 /* LOCK node_head BEFORE CALLING THIS FUNCTION, AND MAKING CHANGES TO THE
  * NODE! */
 /* Returns a valid pointer to the node, or NULL if not found. */
-struct node *get_node(unsigned int id)
+struct node *get_node(intptr_t id)
 {
   struct node *nodep = NULL;
 
