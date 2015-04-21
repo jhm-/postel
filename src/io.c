@@ -101,28 +101,23 @@ struct commands {
 
 static void help_console(char *fmt)
 {
-  char buf[2][2048]; /* one command line argument */
   char *arg;
-  int i, l = FALSE, narg = 0;
+  int i, l = FALSE;
 
-  /* collect the arguments */
+  /* collect one argument */
   arg = strtok(fmt, " \n");
-  while(arg && narg < 2) {
-    strncpy(buf[narg], arg, 2048);
-    narg++;
-    arg = strtok(NULL, " \n");
-  }
+  arg = strtok(NULL, " \n");
 
-  /* parse the arguments */
-  if (narg == 2 && buf[1]) {
+  /* check the argument */
+  if (arg) {
     for(i = 0; i < CONSOLE_COMMANDS; i++) {
-      if (!strncmp(commands[i].name, buf[1], 2048)) {
+      if (!strcmp(commands[i].name, arg)) {
           print_msg("%s\n", commands[i].long_desc);
           l = TRUE;
       }
     }
     if (l != TRUE)
-      print_msg("Invalid command: %s\n", buf[1]);
+      print_msg("Invalid command: %s\n", arg);
   }
   else {
     for(i = 0; i < CONSOLE_COMMANDS; i++)
@@ -150,7 +145,7 @@ static void stdin_cb(uv_poll_t *handle, int status, int events)
     arg = strtok(buf, " \n");
     if (arg) {
       for (i = 0; i < CONSOLE_COMMANDS; i++) {
-        if (!strncmp(commands[i].name, arg, 4096)) {
+        if (!strcmp(commands[i].name, arg)) {
           l = TRUE;
           commands[i].function(buf2);
         }
