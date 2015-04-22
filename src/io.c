@@ -77,106 +77,123 @@ static void print_prompt(void)
 
 static void sigint_cb(uv_signal_t *handle, int signum)
 {
-  shutdown_postel(NULL);
+  char *msg[1] = {"Shutdown: Caught SIGINT"};
+  shutdown_postel(-1, msg);
 }
 
-/* XXX: This CLI is gross. Remove the hierarchy. */
 /* Prototypes */
-static void node_console(char *fmt);
-static void help_console(char *fmt);
+static void help_command(int argc, char *argv[]);
+static void add_command(int argc, char *argv[]);
+static void del_command(int argc, char *argv[]);
+static void list_command(int argc, char *argv[]);
 
 /* Here are the commands yo! */
-#define CONSOLE_COMMANDS 3
+#define MAX_ARGV 3
+#define CONSOLE_COMMANDS 5
 struct commands {
   char *name;
+  unsigned int req_arg;
   char *short_desc;
   char *long_desc;
-  void (*function)(char *);
+  void (*function)(int argc, char *argv[]);
 } commands[] = {
-  {"node", "node [...] : all commands related to nodes, including creation " \
-    "and destruction.", "",  &node_console},
-  {"help", "help [topic] : display help for a specific topic.", "", \
-    &help_console},
-  {"quit", "quit : safely shutdown the simulation.", "", &shutdown_postel}};
+  {"add", 2, "add <x> <y>: spawn a node at coordinates <x>, <y>.", \
+    "spawn a node at coordinates <x>, <y>.", &add_command},
+  {"del", 1, "del <id>: remove a node.", \
+    "remove the node that identifies by <id>.", &del_command},
+  {"list", 0, "list: list information about nodes.", \
+    "list id and coordinates for all nodes in the simulation.", &list_command},
+  {"help", 0, "help [topic]: display help for a specific [topic].", \
+    "display help for a specific [topic].", &help_command},
+  {"quit", 0, "quit: safely shutdown the simulation.", \
+    "safely shut down the simulation.", &shutdown_postel}};
 
-static void help_console(char *fmt)
+static void help_command(int argc, char *argv[])
 {
-  char *arg;
   int i;
 
-  arg = strtok(fmt, " \n");
-  /* Check the first argument */
-  if ((arg = strtok(NULL, " \n"))) {
-    for(i = 0; i < CONSOLE_COMMANDS; i++) {
-      if (!strcmp(commands[i].name, arg)) {
-          if (commands[i].long_desc) {
-            print_msg("%s\n", commands[i].long_desc);
-            return;
-          }
-       }
-    }
-    print_msg("Invalid command: %s\n", arg);
+  if (argc < 1) {
+    for(i = 0; i < CONSOLE_COMMANDS; i++)
+      print_msg("%s\n", commands[i].short_desc);
+    return;
   }
   else {
     for(i = 0; i < CONSOLE_COMMANDS; i++) {
-      if (commands[i].short_desc)
-        print_msg("%s\n", commands[i].short_desc);
+      if (!strcasecmp(argv[1], commands[i].name)) {
+          print_msg("%s\n", commands[i].long_desc);
+          return;
+      }
     }
+    print_msg("Invalid command: %s\n", argv[1]);
   }
 }
 
-static void node_console(char *fmt)
+static void add_command(int argc, char *argv[])
 {
-  char *args[12]; /* Max args: 12 */
-  char **arg;
-  int i;
+  G_LOCK(node_head);
+  if (add_node(strtod(argv[1], NULL), strtod(argv[2], NULL)))
+    print_msg("Error: unable to add node at %.0f, %.0f\n", \
+      strtod(argv[1], NULL), strtod(argv[2], NULL));
+  G_UNLOCK(node_head);
+}
 
-  arg = args;
-  *arg++ = strtok(fmt, " \n");
-  while((*arg++ = strtok(NULL, " \n")) && i < 12)
-    i++;
-  if (!strcmp(args[1], "add")) {
-    if ( i < 3) {
-      print_msg("Invalid command: 'node add' requires two arguments (x, y)\n");
-      return;
-    }
-    G_LOCK(node_head);
-    add_node((gdouble)strtod(args[2], NULL), (gdouble)strtod(args[3], NULL));
-    G_UNLOCK(node_head);
+static void del_command(int argc, char *argv[])
+{
+  G_LOCK(node_head);
+  if (sizeof(intptr_t) == sizeof(int)) {
+    if (del_node(atoi(argv[1])))
+      print_msg("Error: unable to find node %ld\n", atoi(argv[1]));
   }
-  if (!strcmp(args[1], "del")) {
-    if (i < 2) {
-      print_msg("Invalid command: 'node del' requires an argument (id)\n");
-      return;
-    }
-    G_LOCK(node_head);
-    del_node((unsigned int)atoi(args[2]));
-    G_UNLOCK(node_head);
+  else if (sizeof(intptr_t) == sizeof(long)) {
+    if (del_node(atol(argv[1])))
+      print_msg("Error: unable to find node %ld\n", atol(argv[1]));
   }
+  G_UNLOCK(node_head);
+}
+
+static void list_command(int argc, char *argv[])
+{
+  struct node *nodep;
+
+  G_LOCK(node_head);
+  print_msg("node id\t\t\tx\ty\n");
+  print_msg("---------------\t\t----\t----\n");
+  TAILQ_FOREACH(nodep, &node_head, nodes) {
+    print_msg("%ld\t\t%.0f\t%.0f\n", nodep->id, nodep->x, nodep->y);
+  }
+  G_UNLOCK(node_head);
 }
 
 /* Callback when data is readable on stdin */
 static void stdin_cb(uv_poll_t *handle, int status, int events)
 {
   char buf[4096];
-  char *bufp, *arg;
-  int rv, i;
+  char **arg, *argv[MAX_ARGV];
+  int rv, i, argc = 0;
 
   bzero(&buf, sizeof(buf));
   rv = read(STDIN_FILENO, buf, sizeof(buf));
+  buf[4096] = '\0';
   if (rv >= 0) {
     /* Process the input */
-    bufp = strdup(buf);
-    if ((arg = strtok(buf, " \n"))) {
-      for (i = 0; i < CONSOLE_COMMANDS; i++) {
-        if (!strcmp(commands[i].name, arg)) {
-          commands[i].function(bufp);
-          free(bufp);
-          goto peace;
+    arg = argv;
+    if ((*arg++ = strtok(buf, " \n"))) {
+      while((*arg++ = strtok(NULL, " \n")) && argc < (MAX_ARGV - 1))
+          argc++;
+      for(i = 0; i < CONSOLE_COMMANDS; i++) {
+        if (!strcasecmp(argv[0], commands[i].name)) {
+          if (argc < commands[i].req_arg) {
+            print_msg("%s: not enough arguments.\n", argv[0]);
+            goto peace;
+          }
+          else {
+            commands[i].function(argc, argv);
+            goto peace;
+          }
         }
       }
     }
-    print_msg("Invalid command: %s\n", buf);
+    print_msg("Invalid command: %s\n", argv[0]);
   }
   else if (errno != EAGAIN && errno != EINPROGRESS) {
     fprintf(stderr, "Error on read() from stdin: %s\n", strerror(errno));

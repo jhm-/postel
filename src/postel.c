@@ -42,7 +42,7 @@ static void usage(const char *argv)
                   VERSION, argv);
 }
 
-void shutdown_postel(char *fmt)
+void shutdown_postel(int err, char **msg)
 {
   shutdown_console();
   shutdown_simulator();

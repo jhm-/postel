@@ -56,6 +56,7 @@ struct global_state_struct {
 struct node {
   TAILQ_ENTRY(node) nodes;
   intptr_t id;
+  gdouble x, y;
   intptr_t **siblings;
   GooCanvasItem *point, *radius;
 };
@@ -72,7 +73,7 @@ GooCanvasItem *rndr_new_goo_line(gdouble x1, gdouble y1, gdouble x2, \
   gdouble y2, const char *properties, ...);
 GooCanvasItem *rndr_new_goo_ellipse(gdouble x, gdouble y, unsigned int size, \
   const char *properties, ...);
-void rndr_destroy_goo_ellipse(GooCanvasItem *ellipse);
+void rndr_destroy_goo_item(GooCanvasItem *item);
 
 /* Simulation control */
 int add_node(gdouble x, gdouble y);
@@ -80,7 +81,7 @@ int del_node(intptr_t id);
 struct node *get_node(intptr_t id);
 
 /* Shutdown */
-void shutdown_postel(char *fmt);
+void shutdown_postel(int err, char **msg);
 void shutdown_console(void);
 void shutdown_simulator(void);
 void shutdown_renderer(void);

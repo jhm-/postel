@@ -35,9 +35,9 @@ void shutdown_renderer(void)
   gtk_main_quit();
 }
 
-void rndr_destroy_goo_ellipse(GooCanvasItem *ellipse)
+void rndr_destroy_goo_item(GooCanvasItem *item)
 {
-  goo_canvas_item_remove(ellipse);
+  goo_canvas_item_remove(item);
 }
 
 GooCanvasItem *rndr_new_goo_line(gdouble x1, gdouble y1, gdouble x2, \

@@ -36,7 +36,7 @@ G_LOCK_DEFINE(node_head);
 /* Returns -1 on failure, new node id on success */
 int add_node(gdouble x, gdouble y)
 {
-  int err;
+  int err = 0;
   struct node *nodei = malloc(sizeof(struct node));
   if (!nodei) {
     err = -1;
@@ -54,12 +54,15 @@ int add_node(gdouble x, gdouble y)
     G_UNLOCK(postel);
     goto peace;
   }
+  nodei->x = x;
+  nodei->y = y;
   nodei->point = rndr_new_goo_ellipse((x + postel.matrix_zero), \
     (y + postel.matrix_zero), postel.node_p_size, \
-    "line-width", 1.0, NULL);
+    "line-width", 1.0, "stroke-color", "Dark Slate Gray",
+    "fill-color", "Light Green", NULL);
   nodei->radius = rndr_new_goo_ellipse((x + postel.matrix_zero), \
       (y + postel.matrix_zero), postel.node_r_size, \
-    "line-width", 1.0, NULL);
+    "line-width", 1.0, "stroke-color", "Light Slate Gray", NULL);
   G_UNLOCK(postel);
   if (!nodei->point || !nodei->radius) {
     free(nodei);
@@ -67,8 +70,6 @@ int add_node(gdouble x, gdouble y)
     goto peace;
   }
   TAILQ_INSERT_TAIL(&node_head, nodei, nodes);
-  /* Success! */
-  err = nodei->id;
 
 peace:
   return err;
@@ -84,8 +85,8 @@ int del_node(intptr_t id)
   TAILQ_FOREACH(nodep, &node_head, nodes) {
     if (id == nodep->id) {
       err = 0;
-      rndr_destroy_goo_ellipse(nodep->point);
-      rndr_destroy_goo_ellipse(nodep->radius);
+      rndr_destroy_goo_item(nodep->point);
+      rndr_destroy_goo_item(nodep->radius);
       TAILQ_REMOVE(&node_head, nodep, nodes);
       free(nodep);
       break;
