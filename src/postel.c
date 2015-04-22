@@ -73,7 +73,6 @@ int main(int argc, const char *argv[])
    * execution. The gtk renderer is initiated from the main postel thread, and
    * provides a visual representation of the simulation, with a more narrow
    * interface to the model parameters than the console. */
-
   gtk_init(0, NULL);
   /* Launch the supervisor thread */
   sim_thread = g_thread_try_new("simulator", init_simulator, NULL, &error);

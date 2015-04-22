@@ -45,34 +45,33 @@ static int set_non_blocking(int fd)
   return val == -1 ? -1 : fcntl(fd, F_SETFL, val | O_NONBLOCK);
 }
 
-/* Print to screen. watch those format strings! */
+/* Print to screen. Watch those format strings! */
 static int print_msg(const char *fmt, ...)
 {
   int w;
-  char log_buf[4096];
-  size_t log_buf_pos = 0;
+  char buf[4096];
+  size_t bufsz = 0;
   va_list ap;
 
   va_start(ap, fmt);
-    log_buf_pos += vsnprintf(log_buf + log_buf_pos,
-      sizeof(log_buf) - log_buf_pos, fmt, ap);
+    bufsz += vsnprintf(buf + bufsz, (sizeof(buf) - bufsz), fmt, ap);
   va_end(ap);
 
-  w = write(STDOUT_FILENO, log_buf, log_buf_pos);
+  w = write(STDOUT_FILENO, buf, bufsz);
   if (w < 0) {
     fprintf(stderr, "Error on write() to stdout: %s\n", strerror(errno));
   }
-  while (w >= 0 && w != log_buf_pos) {
+  while (w >= 0 && w != bufsz) {
     /* Partial buf written, so shift position */
-    memmove(log_buf, log_buf + w, log_buf_pos - w);
-    log_buf_pos -= w;
+    memmove(buf, buf + w, bufsz - w);
+    bufsz -= w;
   }
   return w;
 }
 
 static void print_prompt(void)
 {
-  /* XXX: this is it... for now */
+  /* XXX: This is it... for now */
   print_msg(":) > ");
 }
 
@@ -81,7 +80,7 @@ static void sigint_cb(uv_signal_t *handle, int signum)
   shutdown_postel(NULL);
 }
 
-/* prototypes */
+/* Prototypes */
 static void node_console(char *fmt);
 static void help_console(char *fmt);
 
@@ -102,62 +101,63 @@ struct commands {
 static void help_console(char *fmt)
 {
   char *arg;
-  int i, l = FALSE;
+  int i;
 
-  /* collect one argument */
   arg = strtok(fmt, " \n");
-  arg = strtok(NULL, " \n");
-
-  /* check the argument */
-  if (arg) {
+  /* Check the argument */
+  if ((arg = strtok(NULL, " \n"))) {
     for(i = 0; i < CONSOLE_COMMANDS; i++) {
       if (!strcmp(commands[i].name, arg)) {
-          print_msg("%s\n", commands[i].long_desc);
-          l = TRUE;
-      }
+          if (commands[i].long_desc) {
+            print_msg("%s\n", commands[i].long_desc);
+            return;
+          }
+       }
     }
-    if (l != TRUE)
-      print_msg("Invalid command: %s\n", arg);
+    print_msg("Invalid command: %s\n", arg);
   }
   else {
-    for(i = 0; i < CONSOLE_COMMANDS; i++)
-      print_msg("%s\n", commands[i].short_desc);
+    for(i = 0; i < CONSOLE_COMMANDS; i++) {
+      if (commands[i].short_desc)
+        print_msg("%s\n", commands[i].short_desc);
+    }
   }
 }
 
 static void node_console(char *fmt)
 {
-  /* XXX: not yet implemented */
 }
 
 /* Callback when data is readable on stdin */
 static void stdin_cb(uv_poll_t *handle, int status, int events)
 {
-  char buf[4096], buf2[4096];
-  char *arg;
-  int rv, i, n, l = FALSE;
+  char buf[4096];
+  char *bufp, *arg;
+  int rv, i, n;
 
   bzero(&buf, sizeof(buf));
   rv = read(STDIN_FILENO, buf, sizeof(buf));
   if (rv >= 0) {
     /* Process the input */
-    strncpy(buf2, buf, 4096);
+    bufp = strdup(buf);
     arg = strtok(buf, " \n");
     if (arg) {
       for (i = 0; i < CONSOLE_COMMANDS; i++) {
         if (!strcmp(commands[i].name, arg)) {
-          l = TRUE;
-          commands[i].function(buf2);
+          commands[i].function(bufp);
+          free(bufp);
+          goto peace;
         }
       }
     }
-    if (l != TRUE)
-      print_msg("Invalid command: %s\n", buf);
+    print_msg("Invalid command: %s\n", buf);
   }
   else if (errno != EAGAIN && errno != EINPROGRESS) {
     fprintf(stderr, "Error on read() from stdin: %s\n", strerror(errno));
     return;
   }
+
+peace:
   print_prompt();
 }
 
