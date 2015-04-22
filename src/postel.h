@@ -31,7 +31,7 @@
 #define DEFAULT_MATRIX_WIDTH 2048
 #define DEFAULT_MATRIX_HEIGHT 2048
 #define DEFAULT_NODE_POINT_SIZE 16
-#define DEFAULT_NODE_RADIUS_SIZE 48
+#define DEFAULT_NODE_RADIUS_SIZE 128
 
 /* Define TRUE/FALSE */
 #ifndef FALSE
@@ -46,6 +46,7 @@
 struct global_state_struct {
   unsigned int matrix_width;
   unsigned int matrix_height;
+  unsigned int matrix_zero;
   unsigned int node_p_size;
   unsigned int node_r_size;
 };
@@ -55,8 +56,8 @@ struct global_state_struct {
 struct node {
   TAILQ_ENTRY(node) nodes;
   intptr_t id;
+  intptr_t **siblings;
   GooCanvasItem *point, *radius;
-  TAILQ_HEAD(sibling_list, node) sibling_head;
 };
 TAILQ_HEAD(node_list, node) node_head;
 
@@ -67,12 +68,15 @@ int init_console(uv_loop_t *loop);
 int init_renderer(void);
 
 /* Render-thread GooCanvas functions */
-GooCanvasItem *rndr_new_goo_ellipse(gdouble x, gdouble y, unsigned int size);
+GooCanvasItem *rndr_new_goo_line(gdouble x1, gdouble y1, gdouble x2, \
+  gdouble y2, const char *properties, ...);
+GooCanvasItem *rndr_new_goo_ellipse(gdouble x, gdouble y, unsigned int size, \
+  const char *properties, ...);
 void rndr_destroy_goo_ellipse(GooCanvasItem *ellipse);
 
 /* Simulation control */
 int add_node(gdouble x, gdouble y);
-int del_node(unsigned int id);
+int del_node(intptr_t id);
 struct node *get_node(intptr_t id);
 
 /* Shutdown */

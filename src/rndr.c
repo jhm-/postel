@@ -40,24 +40,41 @@ void rndr_destroy_goo_ellipse(GooCanvasItem *ellipse)
   goo_canvas_item_remove(ellipse);
 }
 
-/* XXX: needs a va_list of properties */
-GooCanvasItem *rndr_new_goo_ellipse(gdouble x, gdouble y, unsigned int size)
+GooCanvasItem *rndr_new_goo_line(gdouble x1, gdouble y1, gdouble x2, \
+  gdouble y2, const char *properties, ...)
 {
+  va_list ap;
+
+  GooCanvasItem *root =  goo_canvas_get_root_item(GOO_CANVAS(canvas));
+  GooCanvasItem *line = goo_canvas_polyline_new_line(root, x1, y1, x2, y2, \
+    NULL);
+  va_start(ap, properties);
+  g_object_set_valist(G_OBJECT(line), properties, ap);
+  va_end(ap);
+  return line;
+}
+
+GooCanvasItem *rndr_new_goo_ellipse(gdouble x, gdouble y, unsigned int size, \
+  const char *properties, ...)
+{
+  va_list ap;
+
   GooCanvasItem *root = goo_canvas_get_root_item(GOO_CANVAS(canvas));
-  GooCanvasItem *ellipse = goo_canvas_ellipse_new(root, x, y, size, size,
-    "stroke-color", "red",
-    "line-width", 1.0, NULL);
+  GooCanvasItem *ellipse = goo_canvas_ellipse_new(root, x, y, size, size, NULL);
+  va_start(ap, properties);
+  g_object_set_valist(G_OBJECT(ellipse), properties, ap);
+  va_end(ap);
   return ellipse;
 }
 
 int init_renderer(void)
 {
-  int err = 0; /* XXX: initialize */
+  int err = 0; /* XXX: Initialize */
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
   canvas = goo_canvas_new();
 
-  /* XXX: error checking? */
+  /* XXX: Error checking? */
   gtk_container_add(GTK_CONTAINER(window), scrolled_window);
   gtk_container_add(GTK_CONTAINER(scrolled_window), canvas);
   G_LOCK(postel);

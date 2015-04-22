@@ -80,6 +80,7 @@ static void sigint_cb(uv_signal_t *handle, int signum)
   shutdown_postel(NULL);
 }
 
+/* XXX: This CLI is gross. Remove the hierarchy. */
 /* Prototypes */
 static void node_console(char *fmt);
 static void help_console(char *fmt);
@@ -104,7 +105,7 @@ static void help_console(char *fmt)
   int i;
 
   arg = strtok(fmt, " \n");
-  /* Check the argument */
+  /* Check the first argument */
   if ((arg = strtok(NULL, " \n"))) {
     for(i = 0; i < CONSOLE_COMMANDS; i++) {
       if (!strcmp(commands[i].name, arg)) {
@@ -126,6 +127,32 @@ static void help_console(char *fmt)
 
 static void node_console(char *fmt)
 {
+  char *args[12]; /* Max args: 12 */
+  char **arg;
+  int i;
+
+  arg = args;
+  *arg++ = strtok(fmt, " \n");
+  while((*arg++ = strtok(NULL, " \n")) && i < 12)
+    i++;
+  if (!strcmp(args[1], "add")) {
+    if ( i < 3) {
+      print_msg("Invalid command: 'node add' requires two arguments (x, y)\n");
+      return;
+    }
+    G_LOCK(node_head);
+    add_node((gdouble)strtod(args[2], NULL), (gdouble)strtod(args[3], NULL));
+    G_UNLOCK(node_head);
+  }
+  if (!strcmp(args[1], "del")) {
+    if (i < 2) {
+      print_msg("Invalid command: 'node del' requires an argument (id)\n");
+      return;
+    }
+    G_LOCK(node_head);
+    del_node((unsigned int)atoi(args[2]));
+    G_UNLOCK(node_head);
+  }
 }
 
 /* Callback when data is readable on stdin */
@@ -133,15 +160,14 @@ static void stdin_cb(uv_poll_t *handle, int status, int events)
 {
   char buf[4096];
   char *bufp, *arg;
-  int rv, i, n;
+  int rv, i;
 
   bzero(&buf, sizeof(buf));
   rv = read(STDIN_FILENO, buf, sizeof(buf));
   if (rv >= 0) {
     /* Process the input */
     bufp = strdup(buf);
-    arg = strtok(buf, " \n");
-    if (arg) {
+    if ((arg = strtok(buf, " \n"))) {
       for (i = 0; i < CONSOLE_COMMANDS; i++) {
         if (!strcmp(commands[i].name, arg)) {
           commands[i].function(bufp);

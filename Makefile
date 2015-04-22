@@ -1,7 +1,7 @@
 TARGET = postel
 CC = gcc
 LIBS = -luv $(shell pkg-config --libs glib-2.0 gtk+-3.0 goocanvas-2.0)
-CFLAGS = $(shell pkg-config --cflags glib-2.0 gtk+-3.0 goocanvas-2.0)
+CFLAGS = $(shell pkg-config --cflags glib-2.0 gtk+-3.0 goocanvas-2.0) -Wall
 
 .PHONY: clean all default
 
