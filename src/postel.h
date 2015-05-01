@@ -37,7 +37,6 @@
 #ifndef FALSE
 #define FALSE 0
 #endif
-
 #ifndef TRUE
 #define TRUE 1
 #endif
@@ -51,14 +50,23 @@ struct global_state_struct {
   unsigned int node_r_size;
 };
 
+/* The structure for the k-d tree topology */
+struct kdtree {
+  int depth;
+  int axis;
+  struct node *parent;
+  struct node *left;
+  struct node *right;
+};
+
 /* The structure for each network node. _Any_ operation on a node, is protected
  * by a lock on node_head defined in sim.c */
 struct node {
   TAILQ_ENTRY(node) nodes;
   intptr_t id;
-  gdouble x, y;
-  intptr_t **siblings;
+  double x, y;
   GooCanvasItem *point, *radius;
+  struct kdtree kd;
 };
 TAILQ_HEAD(node_list, node) node_head;
 
@@ -76,7 +84,7 @@ GooCanvasItem *rndr_new_goo_ellipse(gdouble x, gdouble y, unsigned int size, \
 void rndr_destroy_goo_item(GooCanvasItem *item);
 
 /* Simulation control */
-int add_node(gdouble x, gdouble y);
+int add_node(double x, double y);
 int del_node(intptr_t id);
 struct node *get_node(intptr_t id);
 

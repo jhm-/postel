@@ -32,9 +32,46 @@ extern struct global_state_struct postel;
 G_LOCK_EXTERN(postel);
 G_LOCK_DEFINE(node_head);
 
+/* The root of the k-d tree */
+struct node *kd_head = NULL;
+
+/* Insert a node into a 2-dimensional  k-d tree */
+static void kd_insert(struct node **parent, struct node **nodep, struct node *nodei, int axis)
+{
+  int flip;
+
+  /* Insert the node... */
+  if (!*nodep) {
+    nodei->kd.axis = axis;
+    if (parent)
+      nodei->kd.parent = (*parent);
+    nodei->kd.left = nodei->kd.right = NULL;
+    *nodep = nodei;
+    return;
+  }
+
+  /* Or traverse the tree */
+  flip = ((*nodep)->kd.axis + 1) & 1;
+  /* 1: X-axis split */
+  if ((*nodep)->kd.axis) {
+    if (nodei->x < (*nodep)->y) {
+      kd_insert(&(*nodep), &(*nodep)->kd.left, nodei, flip);
+      return;
+    }
+    kd_insert(&(*nodep), &(*nodep)->kd.right, nodei, flip);
+  /* 0: Y-axis split */
+  } else {
+    if (nodei->y < (*nodep)->y) {
+      kd_insert(&(*nodep), &(*nodep)->kd.left, nodei, flip);
+      return;
+    }
+    kd_insert(&(*nodep), &(*nodep)->kd.right, nodei, flip);
+  }
+}
+
 /* LOCK node_head BEFORE CALLING THIS FUNCTION! */
 /* Returns -1 on failure, new node id on success */
-int add_node(gdouble x, gdouble y)
+int add_node(double x, double y)
 {
   int err = 0;
   struct node *nodei = malloc(sizeof(struct node));
@@ -46,9 +83,10 @@ int add_node(gdouble x, gdouble y)
   /* Initialize the node */
   nodei->id = (intptr_t)nodei;
   G_LOCK(postel);
-  /* X and Y must not exceed the matrix size */
+  /* X and Y must not exceed the matrix size, and must be greater than zero. */
   if ((x + postel.matrix_zero) > postel.matrix_width || \
-    ((y + postel.matrix_zero) > postel.matrix_height)) {
+    ((y + postel.matrix_zero) > postel.matrix_height ||
+     x < 0 || y < 0)) {
     err = -1;
     free(nodei);
     G_UNLOCK(postel);
@@ -69,6 +107,7 @@ int add_node(gdouble x, gdouble y)
     err = -1;
     goto peace;
   }
+  kd_insert(NULL, &kd_head, nodei, 0);
   TAILQ_INSERT_TAIL(&node_head, nodei, nodes);
 
 peace:
@@ -82,31 +121,31 @@ int del_node(intptr_t id)
   int err = -1;
   struct node *nodep;
 
+  /* Search the queue and validate the id (pointer). */
   TAILQ_FOREACH(nodep, &node_head, nodes) {
     if (id == nodep->id) {
-      err = 0;
       rndr_destroy_goo_item(nodep->point);
       rndr_destroy_goo_item(nodep->radius);
       TAILQ_REMOVE(&node_head, nodep, nodes);
       free(nodep);
+      err = 0;
       break;
     }
   }
   return err;
 }
 
-/* LOCK node_head BEFORE CALLING THIS FUNCTION, AND MAKING CHANGES TO THE
- * NODE! */
-/* Returns a valid pointer to the node, or NULL if not found. */
+/* LOCK node_head BEFORE CALLING THIS FUNCTION! */
+/* Validates the id (pointer), or returns NULL on failure */
 struct node *get_node(intptr_t id)
 {
-  struct node *nodep = NULL;
+  struct node *nodep;
 
   TAILQ_FOREACH(nodep, &node_head, nodes) {
     if (id == nodep->id)
-      break;
+      return nodep;
   }
-  return nodep;
+  return NULL;
 }
 
 void shutdown_simulator(void)
