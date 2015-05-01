@@ -158,7 +158,7 @@ static void list_command(int argc, char *argv[])
   G_LOCK(node_head);
   print_msg("node id\t\t\tx\ty\n");
   print_msg("---------------\t\t----\t----\n");
-  TAILQ_FOREACH(nodep, &node_head, nodes) {
+  LIST_FOREACH(nodep, &node_head, nodes) {
     print_msg("%ld\t\t%.0f\t%.0f\n", nodep->id, nodep->x, nodep->y);
   }
   G_UNLOCK(node_head);

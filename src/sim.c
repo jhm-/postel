@@ -33,39 +33,41 @@ G_LOCK_EXTERN(postel);
 G_LOCK_DEFINE(node_head);
 
 /* The root of the k-d tree */
-struct node *kd_head = NULL;
+struct node *tree_head = NULL;
 
-/* Insert a node into a 2-dimensional  k-d tree */
-static void kd_insert(struct node **parent, struct node **nodep, struct node *nodei, int axis)
+/* Insert a node into a 2-dimensional k-d tree */
+static void tree_insert(struct node **parent, struct node **nodep, struct node *nodei, int axis)
 {
   int flip;
 
   /* Insert the node... */
   if (!*nodep) {
-    nodei->kd.axis = axis;
+    nodei->tree.axis = axis;
     if (parent)
-      nodei->kd.parent = (*parent);
-    nodei->kd.left = nodei->kd.right = NULL;
+      nodei->tree.parent = (*parent);
+    nodei->tree.left = nodei->tree.right = NULL;
     *nodep = nodei;
     return;
   }
 
   /* Or traverse the tree */
-  flip = ((*nodep)->kd.axis + 1) & 1;
+  flip = ((*nodep)->tree.axis + 1) & 1;
   /* 1: X-axis split */
-  if ((*nodep)->kd.axis) {
-    if (nodei->x < (*nodep)->y) {
-      kd_insert(&(*nodep), &(*nodep)->kd.left, nodei, flip);
+  if ((*nodep)->tree.axis) {
+    if (nodei->x < (*nodep)->x) {
+      tree_insert(&(*nodep), &(*nodep)->tree.left, nodei, flip);
       return;
     }
-    kd_insert(&(*nodep), &(*nodep)->kd.right, nodei, flip);
+    /* nodei->x >= nodep->x */
+    tree_insert(&(*nodep), &(*nodep)->tree.right, nodei, flip);
   /* 0: Y-axis split */
   } else {
     if (nodei->y < (*nodep)->y) {
-      kd_insert(&(*nodep), &(*nodep)->kd.left, nodei, flip);
+      tree_insert(&(*nodep), &(*nodep)->tree.left, nodei, flip);
       return;
     }
-    kd_insert(&(*nodep), &(*nodep)->kd.right, nodei, flip);
+    /* nodei->y >= nodep->y */
+    tree_insert(&(*nodep), &(*nodep)->tree.right, nodei, flip);
   }
 }
 
@@ -107,8 +109,8 @@ int add_node(double x, double y)
     err = -1;
     goto peace;
   }
-  kd_insert(NULL, &kd_head, nodei, 0);
-  TAILQ_INSERT_TAIL(&node_head, nodei, nodes);
+  tree_insert(NULL, &tree_head, nodei, 0);
+  LIST_INSERT_HEAD(&node_head, nodei, nodes);
 
 peace:
   return err;
@@ -122,11 +124,11 @@ int del_node(intptr_t id)
   struct node *nodep;
 
   /* Search the queue and validate the id (pointer). */
-  TAILQ_FOREACH(nodep, &node_head, nodes) {
+  LIST_FOREACH(nodep, &node_head, nodes) {
     if (id == nodep->id) {
       rndr_destroy_goo_item(nodep->point);
       rndr_destroy_goo_item(nodep->radius);
-      TAILQ_REMOVE(&node_head, nodep, nodes);
+      LIST_REMOVE(nodep, nodes);
       free(nodep);
       err = 0;
       break;
@@ -135,26 +137,13 @@ int del_node(intptr_t id)
   return err;
 }
 
-/* LOCK node_head BEFORE CALLING THIS FUNCTION! */
-/* Validates the id (pointer), or returns NULL on failure */
-struct node *get_node(intptr_t id)
-{
-  struct node *nodep;
-
-  TAILQ_FOREACH(nodep, &node_head, nodes) {
-    if (id == nodep->id)
-      return nodep;
-  }
-  return NULL;
-}
-
 void shutdown_simulator(void)
 {
   struct node *nodep;
 
   G_LOCK(node_head);
-  while (!TAILQ_EMPTY(&node_head)) {
-    nodep = TAILQ_FIRST(&node_head);
+  while (!LIST_EMPTY(&node_head)) {
+    nodep = LIST_FIRST(&node_head);
     del_node(nodep->id);
   }
   G_UNLOCK(node_head);
@@ -166,7 +155,7 @@ gpointer init_simulator(gpointer data)
 
   /* Initialize the node list */
   G_LOCK(node_head);
-  TAILQ_INIT(&node_head);
+  LIST_INIT(&node_head);
   G_UNLOCK(node_head);
 
   /* Initialize the console */
