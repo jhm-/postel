@@ -82,21 +82,23 @@ static void sigint_cb(uv_signal_t *handle, int signum)
 }
 
 /* Prototypes */
-static void help_command(int argc, char *argv[]);
-static void add_command(int argc, char *argv[]);
-static void del_command(int argc, char *argv[]);
-static void list_command(int argc, char *argv[]);
+static void help_command(int argc, char **argv);
+static void add_command(int argc, char **argv);
+static void del_command(int argc, char **argv);
+static void list_command(int argc, char **argv);
+static void nearest_command(int argc, char **argv);
 
 /* Here are the commands yo! */
 #define MAX_ARGV 3
-#define CONSOLE_COMMANDS 5
+#define CONSOLE_COMMANDS 6
 struct commands {
   char *name;
   unsigned int req_arg;
   char *short_desc;
   char *long_desc;
-  void (*function)(int argc, char *argv[]);
+  void (*function)(int argc, char **argv);
 } commands[] = {
+  {"nearest", 2, "nearest <x> <y>", "", &nearest_command},
   {"add", 2, "add <x> <y>: spawn a node at coordinates <x>, <y>.", \
     "spawn a node at coordinates <x>, <y>.", &add_command},
   {"del", 1, "del <id>: remove a node.", \
@@ -108,7 +110,14 @@ struct commands {
   {"quit", 0, "quit: safely shutdown the simulation.", \
     "safely shut down the simulation.", &shutdown_postel}};
 
-static void help_command(int argc, char *argv[])
+static void nearest_command(int argc, char **argv)
+{
+  intptr_t id;
+  id = find_nearest(tree_head, 200, strtod(argv[1], NULL), strtod(argv[2], NULL));
+  print_msg("Nearest node: %ld\n", id);
+}
+
+static void help_command(int argc, char **argv)
 {
   int i;
 
@@ -128,7 +137,7 @@ static void help_command(int argc, char *argv[])
   }
 }
 
-static void add_command(int argc, char *argv[])
+static void add_command(int argc, char **argv)
 {
   G_LOCK(node_head);
   if (add_node(strtod(argv[1], NULL), strtod(argv[2], NULL)))
@@ -137,7 +146,7 @@ static void add_command(int argc, char *argv[])
   G_UNLOCK(node_head);
 }
 
-static void del_command(int argc, char *argv[])
+static void del_command(int argc, char **argv)
 {
   G_LOCK(node_head);
   if (sizeof(intptr_t) == sizeof(int)) {
@@ -151,7 +160,7 @@ static void del_command(int argc, char *argv[])
   G_UNLOCK(node_head);
 }
 
-static void list_command(int argc, char *argv[])
+static void list_command(int argc, char **argv)
 {
   struct node *nodep;
 

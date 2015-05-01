@@ -66,6 +66,7 @@ struct node {
   } tree;
 };
 LIST_HEAD(node_list, node) node_head;
+struct node *tree_head;
 
 /* Prototypes */
 /* Initialize */
@@ -83,6 +84,7 @@ void rndr_destroy_goo_item(GooCanvasItem *item);
 /* Simulation control */
 int add_node(double x, double y);
 int del_node(intptr_t id);
+intptr_t find_nearest(struct node *nodep, double range, double x, double y);
 
 /* Shutdown */
 void shutdown_postel(int err, char **msg);

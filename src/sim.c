@@ -25,6 +25,7 @@
 
 #include <stdlib.h>
 #include <limits.h>
+#include <math.h>
 #include <goocanvas.h>
 #include <uv.h>
 
@@ -32,11 +33,17 @@ extern struct global_state_struct postel;
 G_LOCK_EXTERN(postel);
 G_LOCK_DEFINE(node_head);
 
-/* The root of the k-d tree */
-struct node *tree_head = NULL;
+#define TREE_INSERT(head, elm) tree_insert(NULL, head, elm, 0)
+#define TREE_INIT(head) *head = NULL
+
+intptr_t find_nearest(struct node *nodep, double range, double x, double y)
+{
+  return 0;
+}
 
 /* Insert a node into a 2-dimensional k-d tree */
-static void tree_insert(struct node **parent, struct node **nodep, struct node *nodei, int axis)
+static void tree_insert(struct node **parent, struct node **nodep, \
+  struct node *nodei, int axis)
 {
   int flip;
 
@@ -52,23 +59,12 @@ static void tree_insert(struct node **parent, struct node **nodep, struct node *
 
   /* Or traverse the tree */
   flip = ((*nodep)->tree.axis + 1) & 1;
-  /* 1: X-axis split */
-  if ((*nodep)->tree.axis) {
-    if (nodei->x < (*nodep)->x) {
-      tree_insert(&(*nodep), &(*nodep)->tree.left, nodei, flip);
-      return;
-    }
-    /* nodei->x >= nodep->x */
-    tree_insert(&(*nodep), &(*nodep)->tree.right, nodei, flip);
-  /* 0: Y-axis split */
-  } else {
-    if (nodei->y < (*nodep)->y) {
-      tree_insert(&(*nodep), &(*nodep)->tree.left, nodei, flip);
-      return;
-    }
-    /* nodei->y >= nodep->y */
-    tree_insert(&(*nodep), &(*nodep)->tree.right, nodei, flip);
-  }
+  if ((*nodep)->tree.axis)
+    tree_insert(&(*nodep), (nodei->x < (*nodep)->x) ? &(*nodep)->tree.left : \
+      &(*nodep)->tree.right, nodei, flip);
+  else
+    tree_insert(&(*nodep), (nodei->y < (*nodep)->y) ? &(*nodep)->tree.left : \
+      &(*nodep)->tree.right, nodei, flip);
 }
 
 /* LOCK node_head BEFORE CALLING THIS FUNCTION! */
@@ -87,7 +83,7 @@ int add_node(double x, double y)
   G_LOCK(postel);
   /* X and Y must not exceed the matrix size, and must be greater than zero. */
   if ((x + postel.matrix_zero) > postel.matrix_width || \
-    ((y + postel.matrix_zero) > postel.matrix_height ||
+    ((y + postel.matrix_zero) > postel.matrix_height || \
      x < 0 || y < 0)) {
     err = -1;
     free(nodei);
@@ -109,7 +105,7 @@ int add_node(double x, double y)
     err = -1;
     goto peace;
   }
-  tree_insert(NULL, &tree_head, nodei, 0);
+  TREE_INSERT(&tree_head, nodei);
   LIST_INSERT_HEAD(&node_head, nodei, nodes);
 
 peace:
@@ -156,6 +152,7 @@ gpointer init_simulator(gpointer data)
   /* Initialize the node list */
   G_LOCK(node_head);
   LIST_INIT(&node_head);
+  TREE_INIT(&tree_head);
   G_UNLOCK(node_head);
 
   /* Initialize the console */

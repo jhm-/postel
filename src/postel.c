@@ -50,7 +50,7 @@ void shutdown_postel(int err, char **msg)
 }
 
 /* Welcome to the fantasy zone! Get ready! */
-int main(int argc, const char *argv[])
+int main(int argc, const char **argv)
 {
   int i;
   int err = EXIT_SUCCESS;
