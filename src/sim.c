@@ -36,11 +36,6 @@ G_LOCK_DEFINE(node_head);
 #define TREE_INSERT(head, elm) tree_insert(NULL, head, elm, 0)
 #define TREE_INIT(head) *head = NULL
 
-intptr_t find_nearest(struct node *nodep, double range, double x, double y)
-{
-  return 0;
-}
-
 /* Insert a node into a 2-dimensional k-d tree */
 static void tree_insert(struct node **parent, struct node **nodep, \
   struct node *nodei, int axis)
@@ -65,6 +60,33 @@ static void tree_insert(struct node **parent, struct node **nodep, \
   else
     tree_insert(&(*nodep), (nodei->y < (*nodep)->y) ? &(*nodep)->tree.left : \
       &(*nodep)->tree.right, nodei, flip);
+}
+
+/* Remove a node from the k-d tree */
+static void tree_remove(struct node **nodep)
+{
+}
+
+/* Perform a nearest neightor search for the closest node in the tree */
+static struct node *find_nearest(struct node *nodep, double x, double y)
+{
+  struct node *ret;
+  double dist_x, dist_y;
+
+  if (!nodep)
+    return NULL;
+
+  dist_x = x - nodep->x;
+  dist_y = y - nodep->y;
+
+  if (nodep->tree.axis)
+    ret = find_nearest((dist_x <= 0.0) ? nodep->tree.left : nodep->tree.right, \
+      x, y);
+  else
+    ret = find_nearest((dist_y <= 0.0) ? nodep->tree.left : nodep->tree.right, \
+      x, y);
+
+  return (ret) ? ret : nodep;
 }
 
 /* LOCK node_head BEFORE CALLING THIS FUNCTION! */
